@@ -24,7 +24,7 @@ The `Option` type is a powerful tool for handling values that may or may not be 
       - [Filtering](#filtering)
       - [Fallbacks](#fallbacks)
   - [Benefits](#benefits)
-  - [Consolidated](#consolidated)
+  - [Naive Example](#naive-example)
 
 ## Introduction
 
@@ -110,6 +110,154 @@ Improved code safety and readability, reducing the need for defensive null check
 3. **Code Clarity**: Makes the intent clear—whether a value is optional—and reduces boilerplate null checks.
 4. **Functional Programming**: Encourages functional patterns like mapping and chaining, leading to cleaner, more composable code.
 
-## Consolidated
+## Naive Example
 
-[option_consolidated.ts](./src/option_consolidated.ts)
+```typescript
+import {
+  Option,
+  some,
+  none,
+  isSome,
+  isNone,
+  map,
+  flatMap,
+  filter,
+  unwrap,
+  unwrapOr,
+  fromNullable,
+  and,
+  or,
+  liftA2,
+  matchOption,
+  mapWithDefault,
+} from 'ts-option';
+
+// In-memory user database
+let userID = 0;
+const userDB: User[] = [];
+
+type User = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+// Create a user with validation
+function createUser(name: string, email: string): Option<User> {
+  if (name.trim().length < 3 || !email.includes('@')) {
+    return none();
+  }
+  const user = { id: ++userID, name, email };
+  userDB.push(user);
+  return some(user);
+}
+
+// Get user by email
+function getUserByEmail(userEmail: string): Option<User> {
+  return fromNullable(userDB.find((user) => user.email === userEmail));
+}
+
+// Get user by ID
+function getUserById(userId: number): Option<User> {
+  return fromNullable(userDB.find((user) => user.id === userId));
+}
+
+// Update user
+function updateUser(user: User): Option<User> {
+  const index = userDB.findIndex((u) => u.id === user.id);
+  if (index === -1) {
+    return none();
+  }
+  userDB[index] = user;
+  return some(user);
+}
+
+// Delete user by ID
+function deleteUser(userId: number): Option<User> {
+  const index = userDB.findIndex((u) => u.id === userId);
+  if (index === -1) {
+    return none();
+  }
+  const user = userDB.splice(index, 1)[0];
+  return some(user);
+}
+
+// Example usage with all Option functionalities
+(() => {
+  // Create users
+  const user1 = createUser('Alice', 'alice@example.com');
+  const user2 = createUser('Bob', 'bob@example.com');
+  
+  const invalidUser = createUser('C', 'charlie');
+
+  // Check if users exist
+  console.log('User1 exists:', isSome(user1)); // true
+  console.log('Invalid user exists:', isNone(invalidUser)); // true
+
+  // Transform user data with map
+  const userName = map(user1, (u) => u.name);
+  console.log('User1 name:', unwrapOr(userName, 'Unknown')); // 'Alice'
+
+  // Chain operations with flatMap
+  const updatedUser = flatMap(user1, (u) =>
+    updateUser({ ...u, name: 'Alicia' })
+  );
+  console.log('Updated user:', unwrapOr(updatedUser, null)); // { id: 1, name: 'Alicia', email: 'alice@example.com' }
+
+  // Filter users
+  const longNameUser = filter(user2, (u) => u.name.length > 3);
+  console.log('Long name user:', unwrapOr(longNameUser, null)); // { id: 2, name: 'Bob', email: 'bob@example.com' }
+
+  // Handle non-existent user with unwrap and error
+  const nonExistentUser = getUserByEmail('nonexistent@mail.com');
+  try {
+    unwrap(nonExistentUser);
+  } catch (e) {
+    console.log('Error:', (e as Error).message); // 'Attempted to unwrap a None value'
+  }
+
+  // Provide default with unwrapOr
+  const defaultUser = unwrapOr(nonExistentUser, {
+    id: ++userID,
+    name: 'Guest',
+    email: 'guest@example.com',
+  });
+  console.log('Default user:', defaultUser); // { id: 3, name: 'Guest', email: 'guest@example.com' }
+
+  // Combine two options with and
+  const userPair = and(user1, user2);
+  console.log('User pair:', unwrapOr(userPair, null)); // [{ id: 1, ... }, { id: 2, ... }]
+
+  // Fallback with or
+  const fallbackUser = or(nonExistentUser, some(defaultUser));
+  console.log('Fallback user:', unwrapOr(fallbackUser, null)); // { id: 3, name: 'Guest', ... }
+
+  // Combine values with liftA2
+  const combinedNames = liftA2(
+    (u1: User, u2: User) => `${u1.name} & ${u2.name}`,
+    user1,
+    user2
+  );
+  console.log('Combined names:', unwrapOr(combinedNames, 'No pair')); // 'Alicia & Bob'
+
+  // Match cases with matchOption
+  const matched = matchOption(
+    nonExistentUser,
+    (u) => some(`Found: ${u.name}`),
+    () => some('No user found')
+  );
+  console.log('Matched result:', unwrap(matched)); // 'No user found'
+
+  // Map with default value
+  const nameWithDefault = mapWithDefault(user1, (u) => u.name.toUpperCase(), 'N/A');
+  console.log('Name with default:', unwrap(nameWithDefault)); // 'ALICIA'
+
+  // Delete a user
+  const deletedUser = deleteUser(1);
+  console.log('Deleted user:', unwrapOr(deletedUser, null)); // { id: 1, name: 'Alicia', ... }
+
+  // Display current database
+  console.log('Current DB:', userDB); // [{ id: 2, name: 'Bob', ... }]
+})();
+
+```
