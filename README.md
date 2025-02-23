@@ -1,6 +1,7 @@
 # Option Type in TypeScript
 
 [![CI/CD](https://github.com/kenato254/ts-option/actions/workflows/ci.yml/badge.svg)](https://github.com/kenato254/ts-option/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/kenato254/ts-option/branch/main/graph/badge.svg)](https://codecov.io/gh/kenato254/ts-option)
 
 The `Option` type is a powerful tool for handling values that may or may not be present, inspired by functional programming languages like Rust and Haskell. It provides a type-safe way to avoid common errors associated with `null` or `undefined` by explicitly representing the absence of a value.
 
